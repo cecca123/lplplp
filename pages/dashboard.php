@@ -4,8 +4,8 @@ $pageTitle = 'Dashboard';
 
 // Include configuration
 require_once dirname(__DIR__) . '/config/config.php';
-
 require_once dirname(__DIR__) . '/includes/auth-functions.php';
+require_once dirname(__DIR__) . '/includes/booking-functions.php';
 
 // Require login
 requireLogin();
@@ -15,7 +15,6 @@ function getCurrentUser() {
         return null;
     }
     $userId = $_SESSION['user_id'];
-    // Sostituisci con la tua funzione di query, ad esempio fetchOne
     return fetchOne("SELECT * FROM users WHERE user_id = ?", [$userId]);
 }
 
@@ -28,6 +27,9 @@ if (!$stats) {
         'monthly' => ['energy' => 0, 'cost' => 0]
     ];
 }
+
+// Get upcoming bookings
+$upcomingBookings = getUserUpcomingBookings($_SESSION['user_id']);
 
 // Include header
 require_once dirname(__DIR__) . '/includes/header.php';
@@ -65,6 +67,71 @@ $extraScripts = ['dashboard.js'];
             <div class="stat-card-title">This Month</div>
             <div class="stat-card-value" data-value="<?= $stats['monthly']['energy'] ?>" data-suffix=" kWh" data-decimals="2"><?= formatEnergy($stats['monthly']['energy']) ?></div>
             <div class="stat-card-info"><?= formatCurrency($stats['monthly']['cost']) ?> spent this month</div>
+        </div>
+    </div>
+    
+    <!-- Upcoming Bookings Section -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h2 class="card-title">Your Upcoming Bookings</h2>
+        </div>
+        <div class="card-body">
+            <?php if (empty($upcomingBookings)): ?>
+                <div class="alert alert-info">
+                    <p>You have no upcoming bookings.</p>
+                    <a href="<?= APP_URL ?>/pages/bookings.php" class="btn btn-primary btn-sm mt-2">
+                        <i class="fas fa-calendar-plus"></i> Make a Booking
+                    </a>
+                </div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Location</th>
+                                <th>Duration</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($upcomingBookings as $booking): ?>
+                                <tr>
+                                    <td>
+                                        <?= date('M j, Y', strtotime($booking['booking_datetime'])) ?><br>
+                                        <small class="text-muted">
+                                            <?= date('g:i A', strtotime($booking['booking_datetime'])) ?> - 
+                                            <?= date('g:i A', strtotime($booking['booking_end_datetime'])) ?>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <?= htmlspecialchars($booking['address_street']) ?><br>
+                                        <small class="text-muted"><?= htmlspecialchars($booking['address_city']) ?></small>
+                                    </td>
+                                    <td>
+                                        <?php
+                                            $duration = strtotime($booking['booking_end_datetime']) - strtotime($booking['booking_datetime']);
+                                            $hours = floor($duration / 3600);
+                                            $minutes = floor(($duration % 3600) / 60);
+                                            echo $hours . 'h ' . $minutes . 'm';
+                                        ?>
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="<?= APP_URL ?>/pages/cancel-booking.php" 
+                                              onsubmit="return confirm('Are you sure you want to cancel this booking?');">
+                                            <input type="hidden" name="booking_id" value="<?= $booking['booking_id'] ?>">
+                                            <input type="hidden" name="csrf_token" value="<?= generateCsrfToken() ?>">
+                                            <button type="submit" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-times"></i> Cancel
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
     
@@ -357,6 +424,22 @@ $extraScripts = ['dashboard.js'];
     .booking-actions {
         display: flex;
         justify-content: flex-end;
+    }
+
+    /* Table styles */
+    .table td {
+        vertical-align: middle;
+    }
+    
+    .btn-danger {
+        background-color: var(--error);
+        border-color: var(--error);
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background-color: #dc2626;
+        border-color: #dc2626;
     }
 
     /* Responsive */
