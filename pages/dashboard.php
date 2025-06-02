@@ -28,7 +28,7 @@ if (!$stats) {
     ];
 }
 
-// Get upcoming bookings
+// Get all user bookings
 $upcomingBookings = getUserUpcomingBookings($_SESSION['user_id']);
 
 // Include header
@@ -69,16 +69,16 @@ $extraScripts = ['dashboard.js'];
             <div class="stat-card-info"><?= formatCurrency($stats['monthly']['cost']) ?> spent this month</div>
         </div>
     </div>
-    
-    <!-- Upcoming Bookings Section -->
+
+    <!-- All Bookings Section -->
     <div class="card mb-6">
         <div class="card-header">
-            <h2 class="card-title">Your Upcoming Bookings</h2>
+            <h2 class="card-title">Your Bookings</h2>
         </div>
         <div class="card-body">
             <?php if (empty($upcomingBookings)): ?>
                 <div class="alert alert-info">
-                    <p>You have no upcoming bookings.</p>
+                    <p>You have no bookings.</p>
                     <a href="<?= APP_URL ?>/pages/bookings.php" class="btn btn-primary btn-sm mt-2">
                         <i class="fas fa-calendar-plus"></i> Make a Booking
                     </a>
@@ -91,11 +91,17 @@ $extraScripts = ['dashboard.js'];
                                 <th>Date & Time</th>
                                 <th>Location</th>
                                 <th>Duration</th>
+                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($upcomingBookings as $booking): ?>
+                            <?php foreach ($upcomingBookings as $booking): 
+                                $isPast = strtotime($booking['booking_datetime']) < time();
+                                $isUpcoming = strtotime($booking['booking_datetime']) > time();
+                                $status = $isPast ? 'Completed' : ($isUpcoming ? 'Upcoming' : 'In Progress');
+                                $statusClass = $isPast ? 'text-muted' : ($isUpcoming ? 'text-primary' : 'text-success');
+                            ?>
                                 <tr>
                                     <td>
                                         <?= date('M j, Y', strtotime($booking['booking_datetime'])) ?><br>
@@ -117,14 +123,19 @@ $extraScripts = ['dashboard.js'];
                                         ?>
                                     </td>
                                     <td>
-                                        <form method="POST" action="<?= APP_URL ?>/pages/cancel-booking.php" 
-                                              onsubmit="return confirm('Are you sure you want to cancel this booking?');">
-                                            <input type="hidden" name="booking_id" value="<?= $booking['booking_id'] ?>">
-                                            <input type="hidden" name="csrf_token" value="<?= generateCsrfToken() ?>">
-                                            <button type="submit" class="btn btn-danger btn-sm">
-                                                <i class="fas fa-times"></i> Cancel
-                                            </button>
-                                        </form>
+                                        <span class="<?= $statusClass ?>"><?= $status ?></span>
+                                    </td>
+                                    <td>
+                                        <?php if ($isUpcoming): ?>
+                                            <form method="POST" action="<?= APP_URL ?>/pages/cancel-booking.php" 
+                                                  onsubmit="return confirm('Are you sure you want to cancel this booking?');">
+                                                <input type="hidden" name="booking_id" value="<?= $booking['booking_id'] ?>">
+                                                <input type="hidden" name="csrf_token" value="<?= generateCsrfToken() ?>">
+                                                <button type="submit" class="btn btn-danger btn-sm">
+                                                    <i class="fas fa-times"></i> Cancel
+                                                </button>
+                                            </form>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -213,52 +224,24 @@ $extraScripts = ['dashboard.js'];
         <div class="dashboard-sidebar">
             <div class="card mb-6">
                 <div class="card-header">
-                    <h2 class="card-title">Upcoming Bookings</h2>
+                    <h2 class="card-title">Quick Stats</h2>
                 </div>
                 <div class="card-body">
-                    <div id="upcoming-bookings">
-                        <?php if (empty($upcomingBookings)): ?>
-                            <div class="alert alert-info">
-                                <p>You have no upcoming bookings.</p>
-                                <a href="<?= APP_URL ?>/pages/bookings.php" class="btn btn-primary btn-sm mt-2">
-                                    <i class="fas fa-calendar-plus"></i> Make a Booking
-                                </a>
+                    <div class="quick-stats">
+                        <div class="stat-item">
+                            <i class="fas fa-bolt"></i>
+                            <div class="stat-details">
+                                <span class="stat-label">Last Charge</span>
+                                <span class="stat-value">2.5 kWh</span>
                             </div>
-                        <?php else: ?>
-                            <?php foreach ($upcomingBookings as $booking): ?>
-                                <div class="booking-card">
-                                    <div class="booking-date">
-                                        <?= formatDate($booking['booking_date']) ?>
-                                    </div>
-                                    <div class="booking-details">
-                                        <div class="booking-time">
-                                            <i class="far fa-clock"></i> <?= formatTime($booking['start_time']) ?> - <?= formatTime($booking['end_time']) ?>
-                                        </div>
-                                        <div class="booking-location">
-                                            <i class="fas fa-map-marker-alt"></i> <?= htmlspecialchars($booking['station_name']) ?>
-                                        </div>
-                                        <div class="booking-info">
-                                            Column #<?= $booking['column_number'] ?>, Point #<?= $booking['point_number'] ?>
-                                        </div>
-                                    </div>
-                                    <div class="booking-actions">
-                                        <?php if ($booking['status'] === 'scheduled'): ?>
-                                            <button class="btn btn-danger btn-sm cancel-booking-btn" 
-                                                    data-booking-id="<?= $booking['id'] ?>"
-                                                    data-booking-date="<?= formatDate($booking['booking_date']) ?>"
-                                                    data-booking-time="<?= formatTime($booking['start_time']) ?>">
-                                                <i class="fas fa-times"></i> Cancel
-                                            </button>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                            <div class="text-center mt-4">
-                                <a href="<?= APP_URL ?>/pages/bookings.php" class="btn btn-outline btn-sm">
-                                    <i class="fas fa-list"></i> View All Bookings
-                                </a>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-clock"></i>
+                            <div class="stat-details">
+                                <span class="stat-label">Avg. Duration</span>
+                                <span class="stat-value">45 min</span>
                             </div>
-                        <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -283,7 +266,6 @@ $extraScripts = ['dashboard.js'];
         color: var(--gray-600);
     }
 
-    /* Stats Grid */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -331,101 +313,6 @@ $extraScripts = ['dashboard.js'];
         gap: var(--space-6);
     }
 
-    /* Quick Actions */
-    .quick-actions {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: var(--space-4);
-    }
-
-    .quick-action-card {
-        background-color: var(--gray-100);
-        border-radius: var(--radius-lg);
-        padding: var(--space-4);
-        text-align: center;
-        transition: all var(--transition-fast);
-        color: var(--gray-800);
-    }
-
-    .quick-action-card:hover {
-        background-color: var(--primary);
-        color: var(--white);
-        transform: translateY(-3px);
-    }
-
-    .quick-action-icon {
-        width: 50px;
-        height: 50px;
-        background-color: var(--white);
-        color: var(--primary);
-        border-radius: var(--radius-full);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto var(--space-3);
-        font-size: 1.2rem;
-        transition: all var(--transition-fast);
-    }
-
-    .quick-action-card:hover .quick-action-icon {
-        background-color: rgba(255, 255, 255, 0.2);
-        color: var(--white);
-    }
-
-    .quick-action-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin-bottom: var(--space-2);
-    }
-
-    .quick-action-desc {
-        font-size: 0.9rem;
-        opacity: 0.9;
-    }
-
-    /* Booking Card */
-    .booking-card {
-        background-color: var(--white);
-        border: 1px solid var(--gray-200);
-        border-radius: var(--radius-md);
-        padding: var(--space-4);
-        margin-bottom: var(--space-3);
-        transition: all var(--transition);
-    }
-
-    .booking-card:last-child {
-        margin-bottom: 0;
-    }
-
-    .booking-date {
-        font-weight: 600;
-        color: var(--primary);
-        margin-bottom: var(--space-2);
-    }
-
-    .booking-details {
-        margin-bottom: var(--space-3);
-    }
-
-    .booking-time, .booking-location, .booking-info {
-        margin-bottom: var(--space-1);
-    }
-
-    .booking-time i, .booking-location i {
-        width: 20px;
-        color: var(--gray-600);
-    }
-
-    .booking-info {
-        color: var(--gray-600);
-        font-size: 0.9rem;
-    }
-
-    .booking-actions {
-        display: flex;
-        justify-content: flex-end;
-    }
-
     /* Table styles */
     .table td {
         vertical-align: middle;
@@ -440,6 +327,19 @@ $extraScripts = ['dashboard.js'];
     .btn-danger:hover {
         background-color: #dc2626;
         border-color: #dc2626;
+    }
+
+    /* Status colors */
+    .text-muted {
+        color: var(--gray-500) !important;
+    }
+
+    .text-primary {
+        color: var(--primary) !important;
+    }
+
+    .text-success {
+        color: var(--success) !important;
     }
 
     /* Responsive */

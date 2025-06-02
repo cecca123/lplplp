@@ -1,4 +1,3 @@
-<?php
 /**
  * Booking related functions
  */
@@ -117,22 +116,19 @@ function getBookingDetails($bookingId) {
 }
 
 /**
- * Get current and upcoming bookings for a user
+ * Get all bookings for a user
  *
  * @param int $userId User ID
- * @return array Array of current and upcoming bookings
+ * @return array Array of all user bookings
  */
 function getUserUpcomingBookings($userId) {
-    $currentDatetime = date('Y-m-d H:i:s');
-
     $sql = "SELECT b.*, cp.slots_num,
                   s.address_street, s.address_city
             FROM Bookings b
             JOIN Charging_Points cp ON b.charging_point_id = cp.charging_point_id
             JOIN Stations s ON cp.station_id = s.station_id
             WHERE b.user_id = ? 
-            AND b.booking_datetime >= ?
-            ORDER BY b.booking_datetime";
+            ORDER BY b.booking_datetime DESC";
 
-    return fetchAll($sql, [$userId, $currentDatetime]);
+    return fetchAll($sql, [$userId]);
 }
